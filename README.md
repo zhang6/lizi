@@ -2,6 +2,10 @@
 
 一个使用 Three.js 和 MediaPipe 创建的交互式 3D 体验集合，包含多个精彩的 WebGL 作品。
 
+## 在线体验
+
+点击这里立即体验：[https://airfx.yesxno.com](https://airfx.yesxno.com)
+
 ## 项目列表
 
 ### 🎄 Grand Luxury Tree
@@ -43,10 +47,6 @@
    - ✌️ **双指旋转**：平面翻转
 3. **切换形状**：点击右侧按钮切换粒子形状
 4. **调整颜色**：点击颜色选择器调整粒子颜色
-
-## 在线体验
-
-访问项目首页：`https://airfx.yesxno.com`
 
 ## 技术栈
 
