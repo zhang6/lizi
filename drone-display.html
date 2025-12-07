@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AR Heart & Text Morphing</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- MediaPipe Hands -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Microsoft YaHei', sans-serif; }
+        
+        /* 摄像头全屏背景 */
+        #input_video {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            object-fit: cover;
+            transform: scaleX(-1); /* 镜像翻转 */
+            z-index: 1;
+            opacity: 0; /* 默认隐藏 */
+            transition: opacity 0.5s;
+        }
+
+        /* Canvas 覆盖在视频之上 */
+        canvas {
+            position: absolute;
+            top: 0; left: 0;
+            z-index: 2;
+        }
+        
+        /* UI Container */
+        #ui-container {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            display: flex; flex-direction: column; justify-content: space-between; align-items: center;
+            padding: 2rem; box-sizing: border-box; z-index: 10;
+            transition: opacity 0.5s ease; /* 添加过渡效果 */
+        }
+        
+        /* Class to hide UI */
+        .ui-hidden {
+            opacity: 0 !important;
+            pointer-events: none !important;
+        }
+
+        /* Restore Hint Text (Initially hidden) */
+        #restore-hint {
+            position: absolute;
+            bottom: 10%;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 14px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.5s;
+            z-index: 20;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+
+        /* Glassmorphism Cards */
+        .glass-card {
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 16px;
+            padding: 1rem 2rem;
+            text-align: center;
+            color: white;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+            pointer-events: auto;
+            transition: transform 0.3s;
+        }
+
+        /* Toggle Switch */
+        .toggle-container {
+            display: flex; align-items: center; gap: 10px;
+            pointer-events: auto;
+            background: rgba(0,0,0,0.5); padding: 8px 16px; border-radius: 30px;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        .toggle-switch {
+            position: relative; width: 40px; height: 20px; appearance: none;
+            background: #555; outline: none; border-radius: 20px; cursor: pointer; transition: 0.3s;
+        }
+        .toggle-switch:checked { background: #409cff; }
+        .toggle-switch::after {
+            content: ''; position: absolute; top: 2px; left: 2px;
+            width: 16px; height: 16px; background: white; border-radius: 50%;
+            transition: 0.3s;
+        }
+        .toggle-switch:checked::after { transform: translateX(20px); }
+
+        /* Modal for Editing Text */
+        #edit-modal {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(5px);
+            display: none;
+            justify-content: center; align-items: center;
+            z-index: 100;
+        }
+        
+        .modal-content {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            padding: 2rem;
+            border-radius: 12px;
+            width: 300px;
+            display: flex; flex-direction: column; gap: 1rem;
+        }
+        
+        input {
+            background: #333; border: 1px solid #444; color: white; padding: 8px; border-radius: 4px; outline: none;
+        }
+        
+        button.primary {
+            background: #409cff; color: white; border: none; padding: 10px; border-radius: 6px; cursor: pointer; font-weight: bold;
+        }
+        button.primary:hover { background: #3385d9; }
+        
+        button.secondary {
+            background: transparent; color: #aaa; border: 1px solid #444; padding: 10px; border-radius: 6px; cursor: pointer;
+        }
+
+        .btn-icon {
+            display: flex; align-items: center; gap: 8px;
+            background: rgba(0,0,0,0.5);
+            padding: 8px 16px; border-radius: 20px;
+            cursor: pointer; transition: background 0.2s;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+        .btn-icon:hover { background: rgba(0,0,0,0.7); }
+
+        /* Loading */
+        #loading {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; color: #ff4081;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            z-index: 50; transition: opacity 0.5s;
+        }
+        .spinner {
+            width: 40px; height: 40px; border: 4px solid #111; border-top: 4px solid #ff4081; border-radius: 50%;
+            animation: spin 1s linear infinite; margin-bottom: 1rem;
+        }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <div id="loading">
+        <div class="spinner"></div>
+        <p>初始化全屏粒子引擎...</p>
+    </div>
+
+    <!-- 视频背景 -->
+    <video id="input_video" playsinline></video>
+
+    <!-- Restore Hint -->
+    <div id="restore-hint">点击屏幕任意处恢复界面</div>
+
+    <!-- Edit Text Modal -->
+    <div id="edit-modal">
+        <div class="modal-content">
+            <h3 class="text-white text-lg font-bold mb-2">编辑粒子文字</h3>
+            <div>
+                <label class="text-xs text-gray-400">手势 1 (食指)</label>
+                <input type="text" id="input-text1" value="未来" maxlength="4">
+            </div>
+            <div>
+                <label class="text-xs text-gray-400">手势 2 (V字)</label>
+                <input type="text" id="input-text2" value="科技" maxlength="4">
+            </div>
+            <div>
+                <label class="text-xs text-gray-400">手势 3 (三指)</label>
+                <input type="text" id="input-text3" value="幻影" maxlength="4">
+            </div>
+            <div class="flex gap-2 mt-2">
+                <button class="secondary w-1/2" onclick="closeModal()">取消</button>
+                <button class="primary w-1/2" onclick="saveTexts()">应用</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main UI -->
+    <div id="ui-container">
+        <!-- Top Status Card -->
+        <div class="glass-card mt-4 flex flex-col items-center">
+            <div id="status-icon" class="text-3xl mb-2 text-pink-500">✨</div>
+            <h2 id="status-text" class="text-xl font-bold tracking-widest text-pink-200">星尘模式</h2>
+            <p id="status-desc" class="text-xs text-gray-400 mt-1">张开手掌召唤爱心，握拳散开</p>
+        </div>
+
+        <!-- Bottom Controls -->
+        <div class="flex gap-4 mb-8 pointer-events-auto items-center flex-wrap justify-center">
+             <div class="toggle-container">
+                <input type="checkbox" id="ar-toggle" class="toggle-switch">
+                <label for="ar-toggle" class="text-sm cursor-pointer select-none text-white">AR 背景</label>
+            </div>
+
+             <button class="btn-icon text-white" onclick="openModal()">
+                <span>✏️ 编辑文字</span>
+             </button>
+             <button class="btn-icon text-white" onclick="resetView()">
+                <span>↺ 重置视角</span>
+             </button>
+             <button class="btn-icon text-white" onclick="enterNoUIMode()">
+                <span>👁️ 无UI模式</span>
+             </button>
+        </div>
+    </div>
+
+    <script>
+        // --- UI Control Logic ---
+        function enterNoUIMode() {
+            const ui = document.getElementById('ui-container');
+            const hint = document.getElementById('restore-hint');
+            
+            ui.classList.add('ui-hidden');
+            
+            // Show hint briefly
+            hint.style.opacity = 1;
+            setTimeout(() => hint.style.opacity = 0, 3000); // Hide hint after 3s
+
+            // Add one-time click listener to restore UI
+            // Slight delay to prevent the click that hid the UI from immediately restoring it
+            setTimeout(() => {
+                document.addEventListener('click', restoreUI, { once: true });
+            }, 100);
+        }
+
+        function restoreUI() {
+            const ui = document.getElementById('ui-container');
+            const hint = document.getElementById('restore-hint');
+            ui.classList.remove('ui-hidden');
+            hint.style.opacity = 0;
+        }
+
+        // --- 全局配置 ---
+        const PARTICLE_COUNT = 8000;
+        const CAM_WIDTH = 1280;
+        const CAM_HEIGHT = 720;
+        
+        let texts = {
+            1: "未来",
+            2: "科技",
+            3: "幻影"
+        };
+
+        // 状态
+        let currentMode = 'HEART'; // HEART (包含散落状态), TEXT1, TEXT2, TEXT3
+        let isARActive = false; // 默认为黑色背景，不跟随
+        let handState = {
+            present: false,
+            targetX: 0, 
+            targetY: 0,
+            gesture: 'NONE', // OPEN, FIST, ONE, TWO, THREE
+            scaleFactor: 1.0 
+        };
+
+        // --- Three.js Setup ---
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.z = 45;
+
+        // alpha: true 允许透明背景
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setClearColor(0x000000, 1); // 默认黑色背景
+        document.body.appendChild(renderer.domElement);
+
+        // --- UI Events ---
+        const arToggle = document.getElementById('ar-toggle');
+        const videoElement = document.getElementById('input_video');
+        
+        arToggle.addEventListener('change', (e) => {
+            isARActive = e.target.checked;
+            if (isARActive) {
+                videoElement.style.opacity = 1;
+                renderer.setClearColor(0x000000, 0); // 透明背景
+            } else {
+                videoElement.style.opacity = 0;
+                renderer.setClearColor(0x000000, 1); // 黑色背景
+                handState.targetX = 0;
+                handState.targetY = 0;
+            }
+        });
+
+        // --- 粒子系统核心 ---
+        const geometry = new THREE.BufferGeometry();
+        
+        const currentPositions = new Float32Array(PARTICLE_COUNT * 3);
+        const targetPositions = new Float32Array(PARTICLE_COUNT * 3); 
+        const colors = new Float32Array(PARTICLE_COUNT * 3);
+        const heartColors = new Float32Array(PARTICLE_COUNT * 3); // 专门存爱心的颜色
+        
+        function createCircleTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 32; canvas.height = 32;
+            const context = canvas.getContext('2d');
+            
+            const gradient = context.createRadialGradient(16, 16, 0, 16, 16, 16);
+            gradient.addColorStop(0, 'rgba(255,255,255,1)');
+            gradient.addColorStop(0.4, 'rgba(255,255,255,0.6)');
+            gradient.addColorStop(1, 'rgba(0,0,0,0)');
+            context.fillStyle = gradient;
+            context.fillRect(0,0,32,32);
+            
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        // 定义不同形态的缓存数组
+        let cacheHeart = new Float32Array(PARTICLE_COUNT * 3);
+        let cacheDispersed = new Float32Array(PARTICLE_COUNT * 3); // 新增：全屏散落形态
+        let cacheText1 = new Float32Array(PARTICLE_COUNT * 3);
+        let cacheText2 = new Float32Array(PARTICLE_COUNT * 3);
+        let cacheText3 = new Float32Array(PARTICLE_COUNT * 3);
+
+        const colorPink = new THREE.Color(0xff4081);
+        const colorDeepPink = new THREE.Color(0xff0055);
+        const colorBlue = new THREE.Color(0x409cff);
+        const colorGold = new THREE.Color(0xffaa00);
+        const colorPurple = new THREE.Color(0xff40ff);
+        const colorWhite = new THREE.Color(0xffffff);
+
+        // 重构：生成 3D 爱心 (扁平风格)
+        function generateHeartShape() {
+            const arr = new Float32Array(PARTICLE_COUNT * 3);
+            for (let i = 0; i < PARTICLE_COUNT; i++) {
+                // 使用 3D 参数曲面方程
+                // u: 0 -> 2PI, v: 0 -> PI
+                const u = Math.random() * Math.PI * 2;
+                const v = Math.random() * Math.PI; 
+                
+                // 粒子分布控制：
+                let r = 0;
+                const distType = Math.random();
+                let isCore = false;
+
+                if (distType > 0.2) {
+                    // 80% 表面层 (Shell)：集中在 r=0.9~1.1
+                    r = 0.9 + Math.random() * 0.2;
+                } else if (distType > 0.05) {
+                    // 15% 内部填充 (Volume)：均匀填充
+                    r = Math.pow(Math.random(), 1/3); // 立方根分布让球体内部均匀
+                    isCore = true;
+                } else {
+                    // 5% 外部光晕 (Aura)
+                    r = 1.2 + Math.random() * 0.5;
+                }
+
+                // 3D Heart Formula (基于球坐标变形)
+                let hx = 16 * Math.pow(Math.sin(u), 3) * Math.sin(v);
+                let hy = (13 * Math.cos(u) - 5 * Math.cos(2*u) - 2 * Math.cos(3*u) - Math.cos(4*u)) * Math.sin(v);
+                let hz = 6 * Math.cos(v); 
+
+                const scale = 0.8;
+
+                // 坐标赋值
+                arr[i*3] = hx * r * scale;
+                arr[i*3+1] = hy * r * scale + 2; // 稍微抬高一点
+                // 修改：大大减小 Z 轴倍数，使其扁平 (从 2.0 -> 0.4)
+                arr[i*3+2] = hz * r * scale * 0.4; 
+
+                // --- 预计算爱心专属颜色 ---
+                let c = new THREE.Color();
+                if (isCore) {
+                    c.lerpColors(colorWhite, colorGold, Math.random());
+                } else {
+                    // 根据 z 深度或 r 半径做渐变
+                    const mix = (r - 0.9) * 2; // 归一化
+                    if (Math.abs(hz) > 3) { 
+                         c = colorDeepPink;
+                    } else {
+                         c.lerpColors(colorPink, colorDeepPink, Math.max(0, Math.min(1, mix)));
+                    }
+                }
+                heartColors[i*3] = c.r;
+                heartColors[i*3+1] = c.g;
+                heartColors[i*3+2] = c.b;
+            }
+            return arr;
+        }
+
+        // 生成全屏散落形态 (Default)
+        function generateDispersedShape() {
+            const arr = new Float32Array(PARTICLE_COUNT * 3);
+            for (let i = 0; i < PARTICLE_COUNT; i++) {
+                // 随机分布在很大的空间内
+                arr[i*3] = (Math.random() - 0.5) * 120; // X spread
+                arr[i*3+1] = (Math.random() - 0.5) * 80;  // Y spread
+                arr[i*3+2] = (Math.random() - 0.5) * 60;  // Z spread
+            }
+            return arr;
+        }
+
+        // 初始化
+        cacheHeart = generateHeartShape();
+        cacheDispersed = generateDispersedShape();
+        
+        // 默认目标设置为散落
+        targetPositions.set(cacheDispersed);
+
+        // 初始化当前位置 (也设为散落)
+        currentPositions.set(cacheDispersed);
+        
+        // 初始颜色
+        for(let i=0; i<PARTICLE_COUNT; i++) {
+            colors[i*3] = colorPink.r;
+            colors[i*3+1] = colorPink.g;
+            colors[i*3+2] = colorPink.b;
+        }
+
+        geometry.setAttribute('position', new THREE.BufferAttribute(currentPositions, 3));
+        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+        const material = new THREE.PointsMaterial({
+            size: 0.6,
+            vertexColors: true,
+            map: createCircleTexture(),
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+            transparent: true,
+            opacity: 0.9
+        });
+
+        const particleSystem = new THREE.Points(geometry, material);
+        scene.add(particleSystem);
+
+        // 文字生成
+        function createTextCoordinates(textStr, width = 200, height = 200) {
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, width, height);
+            
+            // Modified font size from 100px to 70px
+            ctx.font = 'bold 70px "Microsoft YaHei", sans-serif';
+            ctx.fillStyle = '#ffffff';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(textStr, width/2, height/2);
+            
+            const imageData = ctx.getImageData(0, 0, width, height);
+            const data = imageData.data;
+            const coords = [];
+            
+            for(let y = 0; y < height; y += 2) { 
+                for(let x = 0; x < width; x += 2) {
+                    const index = (y * width + x) * 4;
+                    if(data[index] > 128) { 
+                        coords.push({
+                            x: (x - width/2) * 0.2, 
+                            y: -(y - height/2) * 0.2, 
+                        });
+                    }
+                }
+            }
+            return coords;
+        }
+
+        // 进一步加厚文字
+        function mapTextToParticles(textStr) {
+            const coords = createTextCoordinates(textStr, 400, 200);
+            const arr = new Float32Array(PARTICLE_COUNT * 3);
+            
+            for(let i = 0; i < PARTICLE_COUNT; i++) {
+                if (i < coords.length * 5) { // 提升到5倍利用率
+                    const coordIndex = i % coords.length;
+                    const base = coords[coordIndex];
+                    
+                    arr[i*3] = base.x;
+                    arr[i*3+1] = base.y;
+                    
+                    // 厚度增强逻辑 (更厚)
+                    const layer = Math.random();
+                    let zSpread, xySpread;
+                    
+                    if (layer > 0.4) {
+                         // 核心主体
+                         zSpread = 6.0;  // 增加Z轴厚度
+                         xySpread = 0.5;
+                    } else {
+                         // 外部光晕
+                         zSpread = 16.0; // 即使是光晕也更厚
+                         xySpread = 2.0;
+                    }
+                    
+                    arr[i*3+2] = (Math.random() - 0.5) * zSpread;
+                    arr[i*3] += (Math.random() - 0.5) * xySpread;
+                    arr[i*3+1] += (Math.random() - 0.5) * xySpread;
+
+                } else {
+                    // 背景粒子
+                    const randomIdx = Math.floor(Math.random() * coords.length);
+                    const base = coords[randomIdx];
+                    if (base) {
+                        const theta = Math.random() * Math.PI * 2;
+                        const r = 5 + Math.random() * 20;
+                        arr[i*3] = base.x + Math.cos(theta) * r;
+                        arr[i*3+1] = base.y + Math.sin(theta) * r;
+                        arr[i*3+2] = (Math.random() - 0.5) * 30; // 背景非常深邃
+                    } else {
+                        arr[i*3] = 0; arr[i*3+1] = 0; arr[i*3+2] = 0;
+                    }
+                }
+            }
+            return arr;
+        }
+
+        function regenerateTextShapes() {
+            cacheText1 = mapTextToParticles(texts[1]);
+            cacheText2 = mapTextToParticles(texts[2]);
+            cacheText3 = mapTextToParticles(texts[3]);
+        }
+        
+        regenerateTextShapes();
+
+        // --- 逻辑与动画 ---
+        function updateMode(mode) {
+            if (currentMode !== mode) {
+                currentMode = mode;
+                // 更新 UI 文字
+                const statusText = document.getElementById('status-text');
+                const statusDesc = document.getElementById('status-desc');
+                const statusIcon = document.getElementById('status-icon');
+
+                if (mode === 'HEART') {
+                    statusText.innerText = "星尘模式"; 
+                    statusDesc.innerText = "张开手掌召唤爱心，握拳散开";
+                    statusIcon.innerText = "✨";
+                    statusText.className = "text-xl font-bold tracking-widest text-pink-200";
+                } else if (mode === 'TEXT1') {
+                    statusText.innerText = `${texts[1]}`;
+                    statusDesc.innerText = "手势: 食指";
+                    statusIcon.innerText = "☝️";
+                    statusText.className = "text-xl font-bold tracking-widest text-blue-300";
+                } else if (mode === 'TEXT2') {
+                    statusText.innerText = `${texts[2]}`;
+                    statusDesc.innerText = "手势: V字";
+                    statusIcon.innerText = "✌️";
+                    statusText.className = "text-xl font-bold tracking-widest text-yellow-300";
+                } else if (mode === 'TEXT3') {
+                    statusText.innerText = `${texts[3]}`;
+                    statusDesc.innerText = "手势: 三指";
+                    statusIcon.innerText = "🤟";
+                    statusText.className = "text-xl font-bold tracking-widest text-purple-300";
+                }
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const positions = geometry.attributes.position.array;
+            const colorsAttr = geometry.attributes.color.array;
+            const time = Date.now() * 0.001;
+
+            let activeTarget = targetPositions; 
+            let lerpSpeed = 0.06; 
+            let targetColorRGB = { r: colorPink.r, g: colorPink.g, b: colorPink.b };
+            let useCustomColors = false; // 是否使用预计算的爱心颜色
+
+            // 1. 核心逻辑分支
+            if (currentMode === 'HEART') {
+                
+                // 默认目标：全屏散落
+                activeTarget = cacheDispersed;
+                targetColorRGB = { r: colorBlue.r, g: colorBlue.g, b: colorBlue.b };
+
+                // 手势判断逻辑：
+                if (handState.gesture === 'OPEN') {
+                    activeTarget = cacheHeart;
+                    useCustomColors = true; // 使用我们精心计算的爱心渐变色
+                } 
+                else {
+                   if (handState.gesture === 'FIST') targetColorRGB = { r: colorGold.r, g: colorGold.g, b: colorGold.b };
+                }
+
+            } else {
+                // 文字模式
+                if (currentMode === 'TEXT1') { activeTarget = cacheText1; targetColorRGB = { r: colorBlue.r, g: colorBlue.g, b: colorBlue.b }; }
+                if (currentMode === 'TEXT2') { activeTarget = cacheText2; targetColorRGB = { r: colorGold.r, g: colorGold.g, b: colorGold.b }; }
+                if (currentMode === 'TEXT3') { activeTarget = cacheText3; targetColorRGB = { r: colorPurple.r, g: colorPurple.g, b: colorPurple.b }; }
+            }
+
+            // 2. 跟随逻辑
+            let offsetX = 0;
+            let offsetY = 0;
+
+            if (isARActive && handState.present) {
+                offsetX = handState.targetX;
+                
+                let heightOffset = 10;
+                
+                if (currentMode === 'HEART' && handState.gesture !== 'OPEN') {
+                    offsetX = 0; 
+                    offsetY = 0;
+                } else {
+                    if (currentMode !== 'HEART') heightOffset = 8;
+                    offsetY = handState.targetY + heightOffset;
+                }
+            }
+
+            // 3. 粒子更新循环
+            for (let i = 0; i < PARTICLE_COUNT; i++) {
+                const ix = i * 3;
+                const iy = i * 3 + 1;
+                const iz = i * 3 + 2;
+
+                let tx = activeTarget[ix];
+                let ty = activeTarget[iy];
+                let tz = activeTarget[iz];
+
+                // 特效处理
+                if (currentMode === 'HEART' && handState.gesture === 'OPEN') {
+                    // 爱心特效：旋转 + 心跳
+                    const beat = 1 + Math.sin(time * 3) * 0.05;
+                    tx *= beat; ty *= beat; tz *= beat;
+                    
+                    const cosR = Math.cos(time * 0.5);
+                    const sinR = Math.sin(time * 0.5);
+                    const rx = tx * cosR - tz * sinR;
+                    const rz = tx * sinR + tz * cosR;
+                    tx = rx; tz = rz;
+                } 
+                else if (currentMode === 'HEART') {
+                    // 散落特效：缓慢漂浮
+                    tx += Math.sin(time * 0.5 + i) * 2.0;
+                    ty += Math.cos(time * 0.3 + i) * 2.0;
+                }
+                else {
+                    // 文字微动
+                    tx += Math.sin(time * 2 + i) * 0.1;
+                    ty += Math.cos(time * 3 + i) * 0.1;
+                }
+
+                // 应用位移
+                tx += offsetX;
+                ty += offsetY;
+
+                // 物理更新
+                positions[ix] += (tx - positions[ix]) * lerpSpeed;
+                positions[iy] += (ty - positions[iy]) * lerpSpeed;
+                positions[iz] += (tz - positions[iz]) * lerpSpeed;
+
+                // 颜色更新
+                let tr, tg, tb;
+                if (useCustomColors) {
+                    tr = heartColors[ix];
+                    tg = heartColors[iy];
+                    tb = heartColors[iz];
+                } else {
+                    tr = targetColorRGB.r;
+                    tg = targetColorRGB.g;
+                    tb = targetColorRGB.b;
+                }
+                
+                colorsAttr[ix] += (tr - colorsAttr[ix]) * 0.05;
+                colorsAttr[iy] += (tg - colorsAttr[iy]) * 0.05;
+                colorsAttr[iz] += (tb - colorsAttr[iz]) * 0.05;
+            }
+
+            geometry.attributes.position.needsUpdate = true;
+            geometry.attributes.color.needsUpdate = true;
+            
+            renderer.render(scene, camera);
+        }
+
+        animate();
+
+        // --- MediaPipe Hands ---
+        const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
+        hands.setOptions({
+            maxNumHands: 1,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.6,
+            minTrackingConfidence: 0.6
+        });
+
+        hands.onResults(onResults);
+
+        const cam = new Camera(videoElement, {
+            onFrame: async () => { await hands.send({image: videoElement}); },
+            width: CAM_WIDTH, height: CAM_HEIGHT
+        });
+        cam.start();
+
+        setTimeout(() => document.getElementById('loading').style.opacity = 0, 2000);
+        setTimeout(() => document.getElementById('loading').style.display = 'none', 2500);
+
+        function onResults(results) {
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                handState.present = true;
+                const lm = results.multiHandLandmarks[0];
+                
+                const calcWorldPos = (landmarkIndex) => {
+                    const x = (1 - lm[landmarkIndex].x - 0.5) * 45; 
+                    const y = -(lm[landmarkIndex].y - 0.5) * 35;
+                    return { x, y };
+                };
+
+                const tips = [8, 12, 16, 20];
+                const pips = [6, 10, 14, 18];
+                const fingersUp = tips.map((tip, i) => lm[tip].y < lm[pips[i]].y);
+                const isThumbUp = lm[4].x < lm[2].x; 
+                const count = fingersUp.filter(Boolean).length + (isThumbUp ? 1 : 0);
+
+                const indexUp = fingersUp[0];
+                const middleUp = fingersUp[1];
+                const ringUp = fingersUp[2];
+
+                let targetPoint = {x:0, y:0};
+
+                // 状态机
+                if (count >= 4) {
+                    handState.gesture = 'OPEN';
+                    updateMode('HEART');
+                    targetPoint = calcWorldPos(9); 
+                } else if (count === 0 || (count === 1 && !indexUp)) {
+                    handState.gesture = 'FIST';
+                    updateMode('HEART'); 
+                    targetPoint = calcWorldPos(9); 
+                } else if (indexUp && !middleUp && !ringUp) {
+                    handState.gesture = 'ONE';
+                    updateMode('TEXT1');
+                    targetPoint = calcWorldPos(8);
+                } else if (indexUp && middleUp && !ringUp) {
+                    handState.gesture = 'TWO';
+                    updateMode('TEXT2');
+                    const p1 = calcWorldPos(8);
+                    const p2 = calcWorldPos(12);
+                    targetPoint = { x: (p1.x+p2.x)/2, y: (p1.y+p2.y)/2 };
+                } else if (indexUp && middleUp && ringUp) {
+                    handState.gesture = 'THREE';
+                    updateMode('TEXT3');
+                    targetPoint = calcWorldPos(12); 
+                } else {
+                    targetPoint = calcWorldPos(9);
+                }
+
+                handState.targetX += (targetPoint.x - handState.targetX) * 0.2;
+                handState.targetY += (targetPoint.y - handState.targetY) * 0.2;
+
+            } else {
+                handState.present = false;
+                handState.gesture = 'NONE';
+                updateMode('HEART');
+            }
+        }
+
+        const modal = document.getElementById('edit-modal');
+        function openModal() {
+            document.getElementById('input-text1').value = texts[1];
+            document.getElementById('input-text2').value = texts[2];
+            document.getElementById('input-text3').value = texts[3];
+            modal.style.display = 'flex';
+        }
+        function closeModal() { modal.style.display = 'none'; }
+        function saveTexts() {
+            texts[1] = document.getElementById('input-text1').value || "1";
+            texts[2] = document.getElementById('input-text2').value || "2";
+            texts[3] = document.getElementById('input-text3').value || "3";
+            regenerateTextShapes();
+            closeModal();
+        }
+        function resetView() { camera.position.set(0, 0, 45); camera.lookAt(0,0,0); }
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+    </script>
+</body>
+</html>

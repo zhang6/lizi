@@ -113,6 +113,10 @@
             animation-delay: 0.2s;
         }
 
+        .project-card:nth-child(3) {
+            animation-delay: 0.3s;
+        }
+
         .project-card::before {
             content: '';
             position: absolute;
@@ -256,6 +260,15 @@
                     用手势控制粒子，五指张合可以放大缩小，手掌离近离远也能调节效果。
                 </p>
                 <a href="particle-realm.html" class="project-link">进入体验</a>
+            </div>
+
+            <div class="project-card" onclick="window.location.href='drone-display.html'">
+                <span class="project-icon">💫</span>
+                <h2 class="project-title">AR 心形与文字变形</h2>
+                <p class="project-description">
+                    AR 全屏粒子效果，通过手势识别显示不同的文字和心形图案，支持自定义文字内容。
+                </p>
+                <a href="drone-display.html" class="project-link">进入体验</a>
             </div>
         </div>
     </div>
