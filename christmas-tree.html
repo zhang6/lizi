@@ -80,6 +80,12 @@
             color: #000; 
             box-shadow: 0 0 20px rgba(212, 175, 55, 0.5);
         }
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
         .hint-text {
             color: rgba(212, 175, 55, 0.5);
             font-size: 9px;
@@ -90,13 +96,221 @@
 
         #file-input { display: none; }
 
-        /* Webcam feedback */
+        /* Webcam feedback - Hidden by default */
         #webcam-wrapper {
             position: absolute; bottom: 40px; right: 40px;
             width: 120px; height: 90px;
             border: 1px solid rgba(255,255,255,0.1);
-            overflow: hidden; opacity: 0; /* Hidden by default but functional */
+            overflow: hidden; 
+            display: none; /* Hidden by default */
             pointer-events: none;
+        }
+
+        /* Camera Window - Toggleable */
+        #camera-window {
+            position: absolute;
+            bottom: 40px;
+            right: 40px;
+            width: 320px;
+            height: 240px;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(212, 175, 55, 0.4);
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            z-index: 20;
+            display: none; /* Hidden by default */
+            flex-direction: column;
+            overflow: hidden;
+            transition: opacity 0.3s ease;
+        }
+
+        #camera-window.visible {
+            display: flex;
+        }
+
+        #camera-window-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: rgba(212, 175, 55, 0.2);
+            border-bottom: 1px solid rgba(212, 175, 55, 0.3);
+            cursor: move;
+        }
+
+        #camera-window-title {
+            color: #d4af37;
+            font-size: 11px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            font-weight: 500;
+        }
+
+        #camera-window-close {
+            background: transparent;
+            border: none;
+            color: #d4af37;
+            font-size: 16px;
+            cursor: pointer;
+            padding: 0;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s;
+        }
+
+        #camera-window-close:hover {
+            transform: scale(1.2);
+        }
+
+        #camera-window-content {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #camera-window-video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1); /* 镜像翻转 */
+        }
+
+        #camera-window-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            transform: scaleX(-1); /* 镜像翻转 */
+        }
+
+        /* Gesture Guide Panel */
+        #gesture-guide {
+            position: absolute;
+            top: 40px;
+            left: 40px;
+            width: 280px;
+            max-height: 70vh;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(212, 175, 55, 0.4);
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            z-index: 20;
+            display: none; /* Hidden by default */
+            flex-direction: column;
+            overflow: hidden;
+            transition: opacity 0.3s ease;
+        }
+
+        #gesture-guide.visible {
+            display: flex;
+        }
+
+        #gesture-guide-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background: rgba(212, 175, 55, 0.2);
+            border-bottom: 1px solid rgba(212, 175, 55, 0.3);
+        }
+
+        #gesture-guide-title {
+            color: #d4af37;
+            font-size: 12px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        #gesture-guide-close {
+            background: transparent;
+            border: none;
+            color: #d4af37;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 0;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s;
+        }
+
+        #gesture-guide-close:hover {
+            transform: scale(1.2);
+        }
+
+        #gesture-guide-content {
+            padding: 16px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .gesture-item {
+            margin-bottom: 16px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid rgba(212, 175, 55, 0.1);
+        }
+
+        .gesture-item:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+
+        .gesture-icon {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+
+        .gesture-name {
+            color: #d4af37;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            letter-spacing: 1px;
+        }
+
+        .gesture-action {
+            color: #ffd966;
+            font-size: 11px;
+            margin-bottom: 6px;
+            font-style: italic;
+        }
+
+        .gesture-desc {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 11px;
+            line-height: 1.5;
+        }
+
+        .gesture-guide-scroll {
+            max-height: calc(70vh - 80px);
+        }
+
+        .gesture-guide-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .gesture-guide-scroll::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 4px;
+        }
+
+        .gesture-guide-scroll::-webkit-scrollbar-thumb {
+            background: rgba(212, 175, 55, 0.4);
+            border-radius: 4px;
+        }
+
+        .gesture-guide-scroll::-webkit-scrollbar-thumb:hover {
+            background: rgba(212, 175, 55, 0.6);
         }
     </style>
     
@@ -108,11 +322,15 @@
         {
             "imports": {
                 "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
-                "@mediapipe/tasks-vision": "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/+esm"
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
             }
         }
     </script>
+    <!-- MediaPipe Hands -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
 </head>
 <body>
 
@@ -127,11 +345,19 @@
         <h1>Merry Christmas</h1>
         
         <div class="upload-wrapper">
-            <label class="upload-btn">
-                Add Memories
-                <input type="file" id="file-input" multiple accept="image/*">
-            </label>
-            <div class="hint-text">Press 'H' to Hide Controls</div>
+            <div class="btn-group">
+                <label class="upload-btn">
+                    Add Memories
+                    <input type="file" id="file-input" multiple accept="image/*">
+                </label>
+                <button class="upload-btn" id="camera-toggle-btn">
+                    📷 Camera
+                </button>
+                <button class="upload-btn" id="gesture-guide-toggle-btn">
+                    📖 Guide
+                </button>
+            </div>
+            <div class="hint-text">Press 'H' to Hide Controls | Press 'C' to Toggle Camera</div>
         </div>
     </div>
 
@@ -141,14 +367,65 @@
         <canvas id="webcam-preview"></canvas>
     </div>
 
+    <!-- Camera Window -->
+    <div id="camera-window">
+        <div id="camera-window-header">
+            <span id="camera-window-title">手势识别</span>
+            <button id="camera-window-close">×</button>
+        </div>
+        <div id="camera-window-content">
+            <video id="camera-window-video" autoplay playsinline></video>
+            <canvas id="camera-window-canvas"></canvas>
+        </div>
+    </div>
+
+    <!-- Gesture Guide Panel -->
+    <div id="gesture-guide">
+        <div id="gesture-guide-header">
+            <span id="gesture-guide-title">手势说明</span>
+            <button id="gesture-guide-close">×</button>
+        </div>
+        <div id="gesture-guide-content" class="gesture-guide-scroll">
+            <div class="gesture-item">
+                <div class="gesture-icon">🤏</div>
+                <div class="gesture-name">捏合手势</div>
+                <div class="gesture-action">拇指和食指捏合</div>
+                <div class="gesture-desc">选择距离手最近的照片并放大聚焦显示，其他粒子散开</div>
+            </div>
+            <div class="gesture-item">
+                <div class="gesture-icon">✊</div>
+                <div class="gesture-name">收拢手势</div>
+                <div class="gesture-action">手指收拢（握拳或半握）</div>
+                <div class="gesture-desc">粒子聚集成圣诞树形状，树会缓慢旋转</div>
+            </div>
+            <div class="gesture-item">
+                <div class="gesture-icon">✋</div>
+                <div class="gesture-name">张开手势</div>
+                <div class="gesture-action">手指张开</div>
+                <div class="gesture-desc">粒子散落成3D球体分布，粒子会旋转</div>
+            </div>
+            <div class="gesture-item">
+                <div class="gesture-icon">👈👉</div>
+                <div class="gesture-name">左右滑动</div>
+                <div class="gesture-action">在张开手势模式下，手左右移动</div>
+                <div class="gesture-desc">控制3D场景的水平旋转（Y轴旋转），轻轻滑动即可产生大幅旋转</div>
+            </div>
+            <div class="gesture-item">
+                <div class="gesture-icon">👆👇</div>
+                <div class="gesture-name">上下滑动</div>
+                <div class="gesture-action">在张开手势模式下，手上下移动</div>
+                <div class="gesture-desc">控制3D场景的垂直旋转（X轴旋转）</div>
+            </div>
+        </div>
+    </div>
+
     <script type="module">
         import * as THREE from 'three';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
         import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
         import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
         import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-        import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js'; 
-        import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
+        import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
         // --- CONFIGURATION ---
         const CONFIG = {
@@ -182,7 +459,8 @@
         let clock = new THREE.Clock();
         let particleSystem = []; 
         let photoMeshGroup = new THREE.Group();
-        let handLandmarker, video, webcamCanvas, webcamCtx;
+        let hands, video, webcamCanvas, webcamCtx;
+        let cameraWindowVideo, cameraWindowCanvas, cameraWindowCtx;
         let caneTexture; 
 
         async function init() {
@@ -526,130 +804,95 @@
                 webcamCtx = webcamCanvas.getContext('2d');
                 webcamCanvas.width = 160; webcamCanvas.height = 120;
 
+                // Camera window elements
+                cameraWindowVideo = document.getElementById('camera-window-video');
+                cameraWindowCanvas = document.getElementById('camera-window-canvas');
+                cameraWindowCtx = cameraWindowCanvas.getContext('2d');
+                cameraWindowCanvas.width = 320;
+                cameraWindowCanvas.height = 240;
+
                 console.log('初始化 MediaPipe...');
-                const vision = await FilesetResolver.forVisionTasks(
-                    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
-                );
-                handLandmarker = await HandLandmarker.createFromOptions(vision, {
-                    baseOptions: {
-                        modelAssetPath: `https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task`,
-                        delegate: "GPU"
-                    },
-                    runningMode: "VIDEO",
-                    numHands: 1
-                });
-                console.log('MediaPipe 初始化成功');
                 
-                if (navigator.mediaDevices?.getUserMedia) {
-                    console.log('请求摄像头权限...');
-                    try {
-                        // 请求用户摄像头权限 - 使用前置摄像头和低分辨率以提升性能
-                        const stream = await navigator.mediaDevices.getUserMedia({
-                            video: { 
-                                // facingMode: "user",      // 前置摄像头
-                                // width: {ideal: 320},     // 低分辨率以提升性能
-                                // height: {ideal: 240} 
-                            }
-                        });
-                        console.log('摄像头权限获取成功');
-                        video.srcObject = stream;
-                        
-                        // 获取并输出视频流信息
-                        const videoTrack = stream.getVideoTracks()[0];
-                        if (videoTrack) {
-                            const settings = videoTrack.getSettings();
-                            const capabilities = videoTrack.getCapabilities();
-                            
-                            console.log('=== 摄像头分辨率信息 ===');
-                            console.log('当前实际分辨率:', settings.width + 'x' + settings.height);
-                            console.log('当前帧率:', settings.frameRate || '未知');
-                            console.log('设备ID:christmas-tree', settings.deviceId || '未知');
-                            
-                            if (capabilities) {
-                                console.log('--- 支持的分辨率范围 ---');
-                                if (capabilities.width) {
-                                    console.log('宽度范围:', capabilities.width.min + ' - ' + capabilities.width.max);
-                                }
-                                if (capabilities.height) {
-                                    console.log('高度范围:', capabilities.height.min + ' - ' + capabilities.height.max);
-                                }
-                                if (capabilities.frameRate) {
-                                    console.log('帧率范围:', capabilities.frameRate.min + ' - ' + capabilities.frameRate.max);
-                                }
-                            }
-                            console.log('========================');
-                        }
-                        
-                        // 确保视频开始播放
-                        video.play().then(() => {
-                            console.log('视频开始播放');
-                            
-                            // 视频加载后再次检查分辨率（更准确）
-                            video.addEventListener("loadedmetadata", () => {
-                                console.log('视频元数据加载完成');
-                                console.log('视频元素分辨率:', video.videoWidth + 'x' + video.videoHeight);
-                            }, { once: true });
-                        }).catch(err => {
-                            console.error('视频播放失败:', err);
-                        });
-                        
-                        // 使用多种事件确保视频加载
-                        const startPrediction = () => {
-                            console.log('开始手势识别');
-                            predictionRunning = true;
-                            predictWebcam();
-                        };
-                        
-                        video.addEventListener("loadeddata", startPrediction, { once: true });
-                        video.addEventListener("playing", startPrediction, { once: true });
-                        
-                        // 如果视频已经加载，立即开始
-                        if (video.readyState >= 2) {
-                            startPrediction();
-                        }
-                    } catch (err) {
-                        console.error('摄像头访问失败:', err);
-                        console.warn('手势识别功能将不可用。可能的原因：用户拒绝了权限、设备不存在或浏览器不支持。');
+                hands = new Hands({locateFile: (file) => {
+                    return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+                }});
+
+                hands.setOptions({
+                    maxNumHands: 1,
+                    modelComplexity: 1,
+                    minDetectionConfidence: 0.5,
+                    minTrackingConfidence: 0.5
+                });
+
+                hands.onResults(onResults);
+
+                const cameraUtils = new Camera(video, {
+                    onFrame: async () => { 
+                        await hands.send({image: video}); 
+                    },
+                    width: 640, 
+                    height: 480
+                });
+
+                try {
+                    await cameraUtils.start();
+                    console.log('MediaPipe 初始化成功');
+                    
+                    // 同步视频流到窗口
+                    if (video.srcObject) {
+                        cameraWindowVideo.srcObject = video.srcObject;
                     }
-                } else {
-                    console.warn('浏览器不支持 getUserMedia API');
+                } catch (err) {
+                    console.error('摄像头访问失败:', err);
+                    console.warn('手势识别功能将不可用。可能的原因：用户拒绝了权限、设备不存在或浏览器不支持。');
                 }
             } catch (err) {
                 console.error('MediaPipe 初始化失败:', err);
             }
         }
 
-        let lastVideoTime = -1;
-        let predictionRunning = false;
-        async function predictWebcam() {
-            if (!video || !handLandmarker) {
-                return; // 如果视频或识别器未准备好，停止循环
-            }
-            
-            try {
-                if (video.readyState >= 2 && video.currentTime !== lastVideoTime) {
-                    lastVideoTime = video.currentTime;
-                    const result = handLandmarker.detectForVideo(video, performance.now());
-                    processGestures(result);
+        function onResults(results) {
+            // 绘制到摄像头窗口
+            if (cameraWindowCtx && cameraWindowCanvas) {
+                cameraWindowCtx.save();
+                cameraWindowCtx.clearRect(0, 0, cameraWindowCanvas.width, cameraWindowCanvas.height);
+                
+                // 绘制视频帧
+                if (cameraWindowVideo && cameraWindowVideo.readyState >= 2) {
+                    cameraWindowCtx.drawImage(cameraWindowVideo, 0, 0, cameraWindowCanvas.width, cameraWindowCanvas.height);
                 }
-            } catch (err) {
-                console.error('手势识别错误:', err);
-                return; // 出错时停止循环
+                
+                // 绘制手势线条
+                if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                    for (const landmarks of results.multiHandLandmarks) {
+                        // MediaPipe 的绘制函数会自动处理归一化坐标到像素坐标的转换
+                        // 绘制连接线
+                        drawConnectors(cameraWindowCtx, landmarks, HAND_CONNECTIONS, {
+                            color: '#d4af37',
+                            lineWidth: 2
+                        });
+                        // 绘制关键点
+                        drawLandmarks(cameraWindowCtx, landmarks, {
+                            color: '#ffd966',
+                            lineWidth: 1,
+                            radius: 3
+                        });
+                    }
+                }
+                
+                cameraWindowCtx.restore();
             }
-            
-            if (predictionRunning) {
-                requestAnimationFrame(predictWebcam);
-            }
-        }
 
-        function processGestures(result) {
-            if (result.landmarks && result.landmarks.length > 0) {
+            // 手势识别逻辑
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
                 STATE.hand.detected = true;
-                const lm = result.landmarks[0];
+                const lm = results.multiHandLandmarks[0];
                 STATE.hand.x = (lm[9].x - 0.5) * 2; 
                 STATE.hand.y = (lm[9].y - 0.5) * 2;
 
-                const thumb = lm[4]; const index = lm[8]; const wrist = lm[0];
+                const thumb = lm[4]; 
+                const index = lm[8]; 
+                const wrist = lm[0];
                 const pinchDist = Math.hypot(thumb.x - index.x, thumb.y - index.y);
                 const tips = [lm[8], lm[12], lm[16], lm[20]];
                 let avgDist = 0;
@@ -660,7 +903,37 @@
                     if (STATE.mode !== 'FOCUS') {
                         STATE.mode = 'FOCUS';
                         const photos = particleSystem.filter(p => p.type === 'PHOTO');
-                        if (photos.length) STATE.focusTarget = photos[Math.floor(Math.random()*photos.length)].mesh;
+                        if (photos.length) {
+                            // 将手的位置转换为3D世界坐标
+                            // STATE.hand.x 和 STATE.hand.y 是归一化的屏幕坐标（-1到1）
+                            const handWorldPos = new THREE.Vector3(
+                                STATE.hand.x * 20,  // 映射到3D空间的X范围
+                                -STATE.hand.y * 15 + 2,  // 映射到3D空间的Y范围，并调整偏移
+                                30  // Z轴固定距离
+                            );
+                            
+                            // 找到距离手最近的照片
+                            let closestPhoto = null;
+                            let minDistance = Infinity;
+                            
+                            photos.forEach(photo => {
+                                // 获取照片的世界坐标
+                                const photoWorldPos = new THREE.Vector3();
+                                photo.mesh.getWorldPosition(photoWorldPos);
+                                
+                                // 计算距离
+                                const distance = handWorldPos.distanceTo(photoWorldPos);
+                                
+                                if (distance < minDistance) {
+                                    minDistance = distance;
+                                    closestPhoto = photo;
+                                }
+                            });
+                            
+                            if (closestPhoto) {
+                                STATE.focusTarget = closestPhoto.mesh;
+                            }
+                        }
                     }
                 } else if (avgDist < 0.25) {
                     STATE.mode = 'TREE';
@@ -689,7 +962,131 @@
                     const controls = document.querySelector('.upload-wrapper');
                     if (controls) controls.classList.toggle('ui-hidden');
                 }
+                // 按 'C' 键切换摄像头窗口
+                if (e.key.toLowerCase() === 'c') {
+                    toggleCameraWindow();
+                }
             });
+
+            // 摄像头窗口控制
+            const cameraWindow = document.getElementById('camera-window');
+            const cameraWindowClose = document.getElementById('camera-window-close');
+            const cameraToggleBtn = document.getElementById('camera-toggle-btn');
+            
+            cameraWindowClose.addEventListener('click', () => {
+                toggleCameraWindow();
+            });
+
+            // 按钮点击切换摄像头窗口
+            if (cameraToggleBtn) {
+                cameraToggleBtn.addEventListener('click', () => {
+                    toggleCameraWindow();
+                });
+            }
+
+            // 拖拽功能
+            let isDragging = false;
+            let dragOffset = { x: 0, y: 0 };
+            const cameraWindowHeader = document.getElementById('camera-window-header');
+            
+            cameraWindowHeader.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                const rect = cameraWindow.getBoundingClientRect();
+                dragOffset.x = e.clientX - rect.left;
+                dragOffset.y = e.clientY - rect.top;
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (isDragging) {
+                    cameraWindow.style.left = (e.clientX - dragOffset.x) + 'px';
+                    cameraWindow.style.top = (e.clientY - dragOffset.y) + 'px';
+                    cameraWindow.style.right = 'auto';
+                    cameraWindow.style.bottom = 'auto';
+                }
+            });
+
+            document.addEventListener('mouseup', () => {
+                isDragging = false;
+            });
+
+            // 手势说明面板控制
+            const gestureGuide = document.getElementById('gesture-guide');
+            const gestureGuideClose = document.getElementById('gesture-guide-close');
+            const gestureGuideToggleBtn = document.getElementById('gesture-guide-toggle-btn');
+            
+            gestureGuideClose.addEventListener('click', () => {
+                toggleGestureGuide();
+            });
+
+            // 按钮点击切换手势说明面板
+            if (gestureGuideToggleBtn) {
+                gestureGuideToggleBtn.addEventListener('click', () => {
+                    toggleGestureGuide();
+                });
+            }
+
+            // 手势说明面板拖拽功能
+            let isDraggingGuide = false;
+            let dragOffsetGuide = { x: 0, y: 0 };
+            const gestureGuideHeader = document.getElementById('gesture-guide-header');
+            
+            gestureGuideHeader.addEventListener('mousedown', (e) => {
+                if (e.target.id !== 'gesture-guide-close') {
+                    isDraggingGuide = true;
+                    const rect = gestureGuide.getBoundingClientRect();
+                    dragOffsetGuide.x = e.clientX - rect.left;
+                    dragOffsetGuide.y = e.clientY - rect.top;
+                }
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (isDraggingGuide) {
+                    gestureGuide.style.left = (e.clientX - dragOffsetGuide.x) + 'px';
+                    gestureGuide.style.top = (e.clientY - dragOffsetGuide.y) + 'px';
+                    gestureGuide.style.right = 'auto';
+                    gestureGuide.style.bottom = 'auto';
+                }
+            });
+
+            document.addEventListener('mouseup', () => {
+                isDraggingGuide = false;
+            });
+        }
+
+        function toggleGestureGuide() {
+            const gestureGuide = document.getElementById('gesture-guide');
+            const gestureGuideToggleBtn = document.getElementById('gesture-guide-toggle-btn');
+            const isVisible = gestureGuide.classList.contains('visible');
+            
+            if (isVisible) {
+                gestureGuide.classList.remove('visible');
+                if (gestureGuideToggleBtn) {
+                    gestureGuideToggleBtn.textContent = '📖 Guide';
+                }
+            } else {
+                gestureGuide.classList.add('visible');
+                if (gestureGuideToggleBtn) {
+                    gestureGuideToggleBtn.textContent = '📖 Hide';
+                }
+            }
+        }
+
+        function toggleCameraWindow() {
+            const cameraWindow = document.getElementById('camera-window');
+            const cameraToggleBtn = document.getElementById('camera-toggle-btn');
+            const isVisible = cameraWindow.classList.contains('visible');
+            
+            if (isVisible) {
+                cameraWindow.classList.remove('visible');
+                if (cameraToggleBtn) {
+                    cameraToggleBtn.textContent = '📷 Camera';
+                }
+            } else {
+                cameraWindow.classList.add('visible');
+                if (cameraToggleBtn) {
+                    cameraToggleBtn.textContent = '📷 Hide';
+                }
+            }
         }
 
         function animate() {
@@ -698,7 +1095,7 @@
 
             // Rotation Logic
             if (STATE.mode === 'SCATTER' && STATE.hand.detected) {
-                const targetRotY = STATE.hand.x * Math.PI * 0.9; 
+                const targetRotY = STATE.hand.x * Math.PI * 3.0; // 增大左右滑动灵敏度
                 const targetRotX = STATE.hand.y * Math.PI * 0.25;
                 STATE.rotation.y += (targetRotY - STATE.rotation.y) * 3.0 * dt;
                 STATE.rotation.x += (targetRotX - STATE.rotation.x) * 3.0 * dt;
