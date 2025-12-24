@@ -3,212 +3,169 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Grand Luxury Tree Final v2</title>
+    <title>3D 圣诞树幻境 - 手势交互版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { margin: 0; overflow: hidden; background-color: #000000; font-family: 'Times New Roman', serif; }
         #canvas-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
         
-        /* UI Overlay - Minimalist */
-        #ui-layer {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            z-index: 10; pointer-events: none;
-            display: flex; flex-direction: column; 
-            align-items: center;
-            padding-top: 40px;
-            box-sizing: border-box;
-            /* Remove transition here as we don't hide the whole layer anymore */
-        }
-        
-        /* When hidden class is applied to specific elements */
-        .ui-hidden {
-            opacity: 0;
-            pointer-events: none !important;
+        .glass-panel {
+            background: rgba(20, 20, 20, 0.7);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
         }
 
-        /* Loading */
-        #loader {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: #000; z-index: 100;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            transition: opacity 0.8s ease-out;
+        .control-btn {
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
-        .loader-text {
-            color: #d4af37; font-size: 14px; letter-spacing: 4px; margin-top: 20px;
-            text-transform: uppercase; font-weight: 100;
+        .control-btn:hover {
+            background: rgba(212, 175, 55, 0.15);
+            transform: translateY(-2px);
+            box-shadow: 0 0 20px rgba(212, 175, 55, 0.2);
         }
-        .spinner {
-            width: 40px; height: 40px; border: 1px solid rgba(212, 175, 55, 0.2); 
-            border-top: 1px solid #d4af37; border-radius: 50%; 
-            animation: spin 1s linear infinite;
+        .control-btn.active {
+            background: linear-gradient(135deg, rgba(212, 175, 55, 0.4), rgba(212, 175, 55, 0.1));
+            border: 1px solid rgba(212, 175, 55, 0.5);
+            box-shadow: 0 0 25px rgba(212, 175, 55, 0.3);
         }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
         /* Typography - Centerpiece */
         h1 { 
-            color: #fceea7; font-size: 56px; margin: 0; font-weight: 400; 
-            letter-spacing: 6px; 
-            text-shadow: 0 0 50px rgba(252, 238, 167, 0.6); 
+            color: #fceea7; 
+            font-size: 110px; /* 进一步增大标题字号 */
+            margin: 0; 
+            font-weight: 400; 
+            letter-spacing: 12px; /* 进一步增加字母间距 */
+            text-shadow: 0 0 60px rgba(252, 238, 167, 0.7); 
             background: linear-gradient(to bottom, #fff, #eebb66);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
             font-family: 'Cinzel', 'Times New Roman', serif;
-            opacity: 0.9;
-            transition: opacity 0.5s ease; /* Ensure smooth transitions if needed */
-        }
-
-        /* Upload Button - Restored & Elegant */
-        .upload-wrapper {
-            margin-top: 20px;
-            pointer-events: auto;
+            opacity: 0.95;
             text-align: center;
-            transition: opacity 0.5s ease; /* Add transition for smooth hiding */
-        }
-        .upload-btn {
-            background: rgba(20, 20, 20, 0.6); 
-            border: 1px solid rgba(212, 175, 55, 0.4); 
-            color: #d4af37; 
-            padding: 10px 25px; 
-            cursor: pointer; 
-            text-transform: uppercase; 
-            letter-spacing: 3px; 
-            font-size: 10px;
-            transition: all 0.4s;
-            display: inline-block;
-            backdrop-filter: blur(5px);
-        }
-        .upload-btn:hover { 
-            background: #d4af37; 
-            color: #000; 
-            box-shadow: 0 0 20px rgba(212, 175, 55, 0.5);
-        }
-        .btn-group {
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-        .hint-text {
-            color: rgba(212, 175, 55, 0.5);
-            font-size: 9px;
-            margin-top: 8px;
-            letter-spacing: 1px;
-            text-transform: uppercase;
         }
 
-        #file-input { display: none; }
-
-        /* Webcam feedback - Hidden by default */
-        #webcam-wrapper {
-            position: absolute; bottom: 40px; right: 40px;
-            width: 120px; height: 90px;
-            border: 1px solid rgba(255,255,255,0.1);
-            overflow: hidden; 
-            display: none; /* Hidden by default */
+        /* UI Hiding Logic */
+        body.ui-hidden .glass-panel:not(.ui-toggle-persistent),
+        body.ui-hidden #camera-window,
+        body.ui-hidden #gesture-guide {
+            opacity: 0;
             pointer-events: none;
+            visibility: hidden;
+        }
+        .ui-toggle-persistent {
+            z-index: 100;
         }
 
-        /* Camera Window - Toggleable */
+        /* Camera Window - Fixed Position */
         #camera-window {
             position: absolute;
-            bottom: 40px;
-            right: 40px;
+            bottom: 30px;
+            right: 30px;
             width: 320px;
             height: 240px;
-            background: rgba(0, 0, 0, 0.8);
+            background: rgba(0, 0, 0, 0.85);
             backdrop-filter: blur(10px);
-            border: 1px solid rgba(212, 175, 55, 0.4);
-            border-radius: 8px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(212, 175, 55, 0.5);
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
             z-index: 20;
-            display: none; /* Hidden by default */
+            display: none;
             flex-direction: column;
             overflow: hidden;
-            transition: opacity 0.3s ease;
+            transition: all 0.3s ease;
         }
 
         #camera-window.visible {
             display: flex;
+            animation: slideInRight 0.4s ease-out;
+        }
+        
+        @keyframes slideInRight {
+            from { opacity: 0; transform: translateX(50px); }
+            to { opacity: 1; transform: translateX(0); }
         }
 
         #camera-window-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 8px 12px;
-            background: rgba(212, 175, 55, 0.2);
-            border-bottom: 1px solid rgba(212, 175, 55, 0.3);
-            cursor: move;
-        }
-
-        #camera-window-title {
-            color: #d4af37;
-            font-size: 11px;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-            font-weight: 500;
-        }
-
-        #camera-window-close {
-            background: transparent;
-            border: none;
-            color: #d4af37;
-            font-size: 16px;
-            cursor: pointer;
-            padding: 0;
-            width: 20px;
-            height: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: transform 0.2s;
-        }
-
-        #camera-window-close:hover {
-            transform: scale(1.2);
+            padding: 6px 10px;
+            background: rgba(212, 175, 55, 0.15);
+            border-bottom: 1px solid rgba(212, 175, 55, 0.2);
+            cursor: default;
+            flex-shrink: 0;
+            height: 30px;
+            box-sizing: border-box;
         }
 
         #camera-window-content {
             flex: 1;
             position: relative;
             overflow: hidden;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #000;
         }
 
         #camera-window-video {
+            position: absolute;
+            top: 0; left: 0;
             width: 100%;
             height: 100%;
-            object-fit: cover;
-            transform: scaleX(-1); /* 镜像翻转 */
+            object-fit: fill;
+            transform: scaleX(-1);
         }
 
         #camera-window-canvas {
             position: absolute;
-            top: 0;
-            left: 0;
+            top: 0; left: 0;
             width: 100%;
             height: 100%;
-            transform: scaleX(-1); /* 镜像翻转 */
+            object-fit: fill;
+            transform: scaleX(-1);
         }
 
-        /* Gesture Guide Panel */
+        /* Gesture Guide Panel - Fixed Left Center */
         #gesture-guide {
             position: absolute;
-            top: 40px;
-            left: 40px;
-            width: 280px;
-            max-height: 70vh;
+            top: 50%;
+            left: 30px;
+            transform: translateY(-50%);
+            width: 260px;
+            max-height: 60vh;
             background: rgba(0, 0, 0, 0.85);
             backdrop-filter: blur(10px);
-            border: 1px solid rgba(212, 175, 55, 0.4);
-            border-radius: 8px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(212, 175, 55, 0.5);
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
             z-index: 20;
-            display: none; /* Hidden by default */
+            display: none;
             flex-direction: column;
             overflow: hidden;
-            transition: opacity 0.3s ease;
+            transition: all 0.3s ease;
         }
 
         #gesture-guide.visible {
             display: flex;
+            animation: slideInLeft 0.4s ease-out;
+        }
+
+        @keyframes slideInLeft {
+            from { opacity: 0; transform: translate(-50px, -50%); }
+            to { opacity: 1; transform: translate(0, -50%); }
         }
 
         #gesture-guide-header {
@@ -216,8 +173,9 @@
             justify-content: space-between;
             align-items: center;
             padding: 12px 16px;
-            background: rgba(212, 175, 55, 0.2);
-            border-bottom: 1px solid rgba(212, 175, 55, 0.3);
+            background: rgba(212, 175, 55, 0.15);
+            border-bottom: 1px solid rgba(212, 175, 55, 0.2);
+            cursor: default;
         }
 
         #gesture-guide-title {
@@ -312,6 +270,15 @@
         .gesture-guide-scroll::-webkit-scrollbar-thumb:hover {
             background: rgba(212, 175, 55, 0.6);
         }
+
+        /* Slideshow Pop-in Animation */
+        @keyframes popIn {
+            0% { opacity: 0; transform: scale(0.5) translateY(20px); }
+            100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        .animate-pop-in {
+            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
     </style>
     
     <style>
@@ -341,23 +308,60 @@
 
     <div id="canvas-container"></div>
 
-    <div id="ui-layer">
-        <h1>Merry Christmas</h1>
-        
-        <div class="upload-wrapper">
-            <div class="btn-group">
-                <label class="upload-btn">
-                    Add Memories
-                    <input type="file" id="file-input" multiple accept="image/*">
+    <div id="ui-layer" class="absolute top-0 left-0 w-full h-full pointer-events-none z-10 p-4 md:p-8 flex flex-col justify-between">
+        <!-- Top Section -->
+        <div class="relative w-full flex justify-end items-start pointer-events-auto">
+            <!-- Top Center Title -->
+            <div class="absolute left-1/2 -translate-x-1/2 top-0 text-center pointer-events-none">
+                <h1 class="whitespace-nowrap select-none">Merry Christmas</h1>
+            </div>
+            
+            <!-- Top Right Controls -->
+            <div class="flex gap-3 relative z-20">
+                <label class="glass-panel px-5 py-3 text-white hover:text-yellow-200 control-btn rounded-full cursor-pointer group">
+                    <span class="text-xs font-bold tracking-widest">添加回忆</span>
+                    <input type="file" id="file-input" multiple accept="image/*" class="hidden">
                 </label>
-                <button class="upload-btn" id="camera-toggle-btn">
-                    📷 Camera
+                <button id="gesture-guide-toggle-btn" class="glass-panel p-3 text-white hover:text-yellow-200 control-btn rounded-full group" title="操作说明">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 group-hover:scale-110 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
                 </button>
-                <button class="upload-btn" id="gesture-guide-toggle-btn">
-                    📖 Guide
+
+                <button id="ui-visibility-btn" class="glass-panel p-3 text-white hover:text-yellow-200 control-btn rounded-full group ui-toggle-persistent">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path id="ui-icon-path" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c3.85 0 7.29 2.056 9.542 5.196a1.207 1.207 0 010 1.608C19.29 14.944 15.85 17 12 17c-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                </button>
+
+                <button id="fullscreen-btn" class="glass-panel p-3 text-white hover:text-yellow-200 control-btn rounded-full group">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 group-hover:scale-110 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                    </svg>
                 </button>
             </div>
-            <div class="hint-text">Press 'H' to Hide Controls | Press 'C' to Toggle Camera</div>
+        </div>
+
+        <!-- Bottom Section -->
+        <div class="w-full flex justify-between items-end pointer-events-auto">
+            <!-- Bottom Left: Toggles -->
+            <div class="flex flex-col gap-3">
+                <div class="glass-panel px-5 py-3 rounded-full flex items-center gap-3">
+                    <span class="text-xs font-bold tracking-widest text-white">显示摄像头</span>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="camera-toggle" class="sr-only peer" checked>
+                        <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-yellow-300 dark:peer-focus:ring-yellow-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-yellow-500"></div>
+                    </label>
+                </div>
+                <div class="glass-panel px-5 py-3 rounded-full flex items-center gap-3">
+                    <span class="text-xs font-bold tracking-widest text-white">手动旋转控制</span>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="rotation-toggle" class="sr-only peer">
+                        <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-yellow-300 dark:peer-focus:ring-yellow-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-yellow-500"></div>
+                    </label>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -368,11 +372,7 @@
     </div>
 
     <!-- Camera Window -->
-    <div id="camera-window">
-        <div id="camera-window-header">
-            <span id="camera-window-title">手势识别</span>
-            <button id="camera-window-close">×</button>
-        </div>
+    <div id="camera-window" class="visible">
         <div id="camera-window-content">
             <video id="camera-window-video" autoplay playsinline></video>
             <canvas id="camera-window-canvas"></canvas>
@@ -382,39 +382,43 @@
     <!-- Gesture Guide Panel -->
     <div id="gesture-guide">
         <div id="gesture-guide-header">
-            <span id="gesture-guide-title">手势说明</span>
+            <span id="gesture-guide-title">操作说明</span>
             <button id="gesture-guide-close">×</button>
         </div>
         <div id="gesture-guide-content" class="gesture-guide-scroll">
             <div class="gesture-item">
-                <div class="gesture-icon">🤏</div>
-                <div class="gesture-name">捏合手势</div>
-                <div class="gesture-action">拇指和食指捏合</div>
-                <div class="gesture-desc">选择距离手最近的照片并放大聚焦显示，其他粒子散开</div>
+                <div class="gesture-icon">✋ (物理右手)</div>
+                <div class="gesture-name">形态与旋转控制</div>
+                <div class="gesture-action">握拳/张开 + 移动</div>
+                <div class="gesture-desc">
+                    • <b>握拳</b>：聚集成圣诞树模式<br>
+                    • <b>张开</b>：散开为粒子幻境<br>
+                    • <b>移动</b>：开启"手动旋转"时控制视角
+                </div>
             </div>
             <div class="gesture-item">
-                <div class="gesture-icon">✊</div>
-                <div class="gesture-name">收拢手势</div>
-                <div class="gesture-action">手指收拢（握拳或半握）</div>
-                <div class="gesture-desc">粒子聚集成圣诞树形状，树会缓慢旋转</div>
+                <div class="gesture-icon">🤏 (物理左手)</div>
+                <div class="gesture-name">照片查看 (系统R)</div>
+                <div class="gesture-action">左手捏合 (Pinch)</div>
+                <div class="gesture-desc">
+                    • <b>手动旋转开启时</b>：捏合抓取屏幕中心照片并3D聚焦查看<br>
+                    • <b>手动旋转关闭时</b>：捏合弹出复古拍立得相片并切换下一张<br>
+                    • <b>松开手势</b>：立即关闭预览
+                </div>
             </div>
-            <div class="gesture-item">
-                <div class="gesture-icon">✋</div>
-                <div class="gesture-name">张开手势</div>
-                <div class="gesture-action">手指张开</div>
-                <div class="gesture-desc">粒子散落成3D球体分布，粒子会旋转</div>
-            </div>
-            <div class="gesture-item">
-                <div class="gesture-icon">👈👉</div>
-                <div class="gesture-name">左右滑动</div>
-                <div class="gesture-action">在张开手势模式下，手左右移动</div>
-                <div class="gesture-desc">控制3D场景的水平旋转（Y轴旋转），轻轻滑动即可产生大幅旋转</div>
-            </div>
-            <div class="gesture-item">
-                <div class="gesture-icon">👆👇</div>
-                <div class="gesture-name">上下滑动</div>
-                <div class="gesture-action">在张开手势模式下，手上下移动</div>
-                <div class="gesture-desc">控制3D场景的垂直旋转（X轴旋转）</div>
+        </div>
+    </div>
+
+    <!-- Slideshow Overlay -->
+    <div id="slideshow-overlay" class="hidden fixed inset-0 z-50 flex items-center justify-center transition-opacity duration-300 pointer-events-none">
+        <!-- Polaroid Film Style Container -->
+        <div class="relative p-4 flex flex-col items-center justify-center animate-pop-in">
+            <div class="p-4 pb-8 bg-white shadow-[0_20px_50px_rgba(0,0,0,0.5),0_5px_15px_rgba(0,0,0,0.3)] rounded-sm rotate-1 border border-gray-200 pointer-events-auto">
+                <div class="bg-gray-100 overflow-hidden border border-gray-300">
+                    <img id="slideshow-img" class="max-w-[75vw] max-h-[60vh] object-contain" src="" alt="Memory">
+                </div>
+                <!-- Optional: add a small handwritten-style date or text area if needed -->
+                <div class="mt-4 w-full h-4 bg-transparent"></div>
             </div>
         </div>
     </div>
@@ -450,8 +454,12 @@
             mode: 'TREE', 
             focusIndex: -1, 
             focusTarget: null,
-            hand: { detected: false, x: 0, y: 0 },
-            rotation: { x: 0, y: 0 } 
+            hand: { detected: false, x: 0, y: 0, leftPinchTriggered: false, rightPinchActive: false },
+            rotation: { x: 0, y: 0 },
+            isRotationEnabled: false, // 默认关闭旋转控制
+            photoSources: [],
+            slideshowIndex: -1,
+            hasUserPhotos: false
         };
 
         let scene, camera, renderer, composer;
@@ -608,28 +616,47 @@
             }
 
             update(dt, mode, focusTargetMesh) {
-                let target = this.posTree;
-                
-                if (mode === 'SCATTER') target = this.posScatter;
-                else if (mode === 'FOCUS') {
-                    if (this.mesh === focusTargetMesh) {
-                        const desiredWorldPos = new THREE.Vector3(0, 2, 35);
-                        const invMatrix = new THREE.Matrix4().copy(mainGroup.matrixWorld).invert();
-                        target = desiredWorldPos.applyMatrix4(invMatrix);
+                // Special handling for the focused item to prevent drift while background rotates
+                if (mode === 'FOCUS' && this.mesh === focusTargetMesh) {
+                    const desiredWorldPos = new THREE.Vector3(0, 2, 35);
+                    const currentWorldPos = new THREE.Vector3();
+                    this.mesh.getWorldPosition(currentWorldPos);
+                    
+                    // Snap to target if close enough to prevent micro-drifting/wobble from parent rotation
+                    if (currentWorldPos.distanceTo(desiredWorldPos) < 0.5) {
+                        currentWorldPos.copy(desiredWorldPos);
                     } else {
-                        target = this.posScatter;
+                        // Lerp in World Space
+                        const lerpSpeed = 8.0;
+                        currentWorldPos.lerp(desiredWorldPos, lerpSpeed * dt);
                     }
+                    
+                    // Convert back to Local Space and set directly
+                    const invMatrix = new THREE.Matrix4().copy(mainGroup.matrixWorld).invert();
+                    this.mesh.position.copy(currentWorldPos).applyMatrix4(invMatrix);
+                    
+                    // Lock rotation to camera
+                    this.mesh.lookAt(camera.position); 
+
+                    // Scale up
+                    const s = 4.5;
+                    this.mesh.scale.lerp(new THREE.Vector3(s,s,s), 6*dt);
+                    return;
                 }
 
+                let target = this.posTree;
+                
+                if (mode === 'SCATTER' || mode === 'FOCUS') target = this.posScatter;
+
                 // Movement Easing
-                const lerpSpeed = (mode === 'FOCUS' && this.mesh === focusTargetMesh) ? 5.0 : 2.0; 
+                const lerpSpeed = 2.0; 
                 this.mesh.position.lerp(target, lerpSpeed * dt);
 
-                // Rotation Logic - CRITICAL: Ensure spin happens in Scatter
-                if (mode === 'SCATTER') {
-                    this.mesh.rotation.x += this.spinSpeed.x * dt;
-                    this.mesh.rotation.y += this.spinSpeed.y * dt;
-                    this.mesh.rotation.z += this.spinSpeed.z * dt; // Added Z for more natural tumble
+                // Rotation Logic
+                if (mode === 'SCATTER' || mode === 'FOCUS') { 
+                     this.mesh.rotation.x += this.spinSpeed.x * dt;
+                     this.mesh.rotation.y += this.spinSpeed.y * dt;
+                     this.mesh.rotation.z += this.spinSpeed.z * dt;
                 } else if (mode === 'TREE') {
                     // Reset rotations slowly
                     this.mesh.rotation.x = THREE.MathUtils.lerp(this.mesh.rotation.x, 0, dt);
@@ -637,21 +664,15 @@
                     this.mesh.rotation.y += 0.5 * dt; 
                 }
                 
-                if (mode === 'FOCUS' && this.mesh === focusTargetMesh) {
-                    this.mesh.lookAt(camera.position); 
-                }
-
                 // Scale Logic
                 let s = this.baseScale;
                 if (this.isDust) {
                     s = this.baseScale * (0.8 + 0.4 * Math.sin(clock.elapsedTime * 4 + this.mesh.id));
                     if (mode === 'TREE') s = 0; 
-                } else if (mode === 'SCATTER' && this.type === 'PHOTO') {
-                    // Large preview size in scatter
+                } else if ((mode === 'SCATTER' || mode === 'FOCUS') && this.type === 'PHOTO') {
                     s = this.baseScale * 2.5; 
                 } else if (mode === 'FOCUS') {
-                    if (this.mesh === focusTargetMesh) s = 4.5; 
-                    else s = this.baseScale * 0.8; 
+                     s = this.baseScale * 0.8; 
                 }
                 
                 this.mesh.scale.lerp(new THREE.Vector3(s,s,s), 4*dt);
@@ -755,6 +776,8 @@
             ctx.fillText("JOYEUX", 256, 230);
             ctx.fillText("NOEL", 256, 300);
             
+            STATE.photoSources.push(canvas.toDataURL());
+
             const tex = new THREE.CanvasTexture(canvas);
             tex.colorSpace = THREE.SRGBColorSpace;
             addPhotoToScene(tex);
@@ -784,9 +807,20 @@
         function handleImageUpload(e) {
             const files = e.target.files;
             if(!files.length) return;
+
+            // Clear default photo if this is the first user upload
+            if (!STATE.hasUserPhotos) {
+                STATE.photoSources = [];
+                photoMeshGroup.clear();
+                particleSystem = particleSystem.filter(p => p.type !== 'PHOTO');
+                STATE.hasUserPhotos = true;
+                STATE.slideshowIndex = -1;
+            }
+
             Array.from(files).forEach(f => {
                 const reader = new FileReader();
                 reader.onload = (ev) => {
+                    STATE.photoSources.push(ev.target.result);
                     new THREE.TextureLoader().load(ev.target.result, (t) => {
                         t.colorSpace = THREE.SRGBColorSpace;
                         addPhotoToScene(t);
@@ -794,6 +828,18 @@
                 }
                 reader.readAsDataURL(f);
             });
+        }
+
+        function cycleSlideshow() {
+            if (STATE.photoSources.length === 0) return;
+
+            const overlay = document.getElementById('slideshow-overlay');
+            const img = document.getElementById('slideshow-img');
+            
+            STATE.slideshowIndex = (STATE.slideshowIndex + 1) % STATE.photoSources.length;
+            img.src = STATE.photoSources[STATE.slideshowIndex];
+            
+            overlay.classList.remove('hidden');
         }
 
         // --- MEDIAPIPE ---
@@ -818,7 +864,7 @@
                 }});
 
                 hands.setOptions({
-                    maxNumHands: 1,
+                    maxNumHands: 2,
                     modelComplexity: 1,
                     minDetectionConfidence: 0.5,
                     minTrackingConfidence: 0.5
@@ -857,15 +903,9 @@
                 cameraWindowCtx.save();
                 cameraWindowCtx.clearRect(0, 0, cameraWindowCanvas.width, cameraWindowCanvas.height);
                 
-                // 绘制视频帧
-                if (cameraWindowVideo && cameraWindowVideo.readyState >= 2) {
-                    cameraWindowCtx.drawImage(cameraWindowVideo, 0, 0, cameraWindowCanvas.width, cameraWindowCanvas.height);
-                }
-                
                 // 绘制手势线条
                 if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-                    for (const landmarks of results.multiHandLandmarks) {
-                        // MediaPipe 的绘制函数会自动处理归一化坐标到像素坐标的转换
+                    results.multiHandLandmarks.forEach((landmarks, index) => {
                         // 绘制连接线
                         drawConnectors(cameraWindowCtx, landmarks, HAND_CONNECTIONS, {
                             color: '#d4af37',
@@ -877,74 +917,335 @@
                             lineWidth: 1,
                             radius: 3
                         });
-                    }
+                    });
                 }
                 
                 cameraWindowCtx.restore();
             }
 
-            // 手势识别逻辑
-            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-                STATE.hand.detected = true;
-                const lm = results.multiHandLandmarks[0];
-                STATE.hand.x = (lm[9].x - 0.5) * 2; 
-                STATE.hand.y = (lm[9].y - 0.5) * 2;
+                        // 手势识别逻辑
 
-                const thumb = lm[4]; 
-                const index = lm[8]; 
-                const wrist = lm[0];
-                const pinchDist = Math.hypot(thumb.x - index.x, thumb.y - index.y);
-                const tips = [lm[8], lm[12], lm[16], lm[20]];
-                let avgDist = 0;
-                tips.forEach(t => avgDist += Math.hypot(t.x - wrist.x, t.y - wrist.y));
-                avgDist /= 4;
+                        if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
 
-                if (pinchDist < 0.05) {
-                    if (STATE.mode !== 'FOCUS') {
-                        STATE.mode = 'FOCUS';
-                        const photos = particleSystem.filter(p => p.type === 'PHOTO');
-                        if (photos.length) {
-                            // 将手的位置转换为3D世界坐标
-                            // STATE.hand.x 和 STATE.hand.y 是归一化的屏幕坐标（-1到1）
-                            const handWorldPos = new THREE.Vector3(
-                                STATE.hand.x * 20,  // 映射到3D空间的X范围
-                                -STATE.hand.y * 15 + 2,  // 映射到3D空间的Y范围，并调整偏移
-                                30  // Z轴固定距离
-                            );
-                            
-                            // 找到距离手最近的照片
-                            let closestPhoto = null;
-                            let minDistance = Infinity;
-                            
-                            photos.forEach(photo => {
-                                // 获取照片的世界坐标
-                                const photoWorldPos = new THREE.Vector3();
-                                photo.mesh.getWorldPosition(photoWorldPos);
-                                
-                                // 计算距离
-                                const distance = handWorldPos.distanceTo(photoWorldPos);
-                                
-                                if (distance < minDistance) {
-                                    minDistance = distance;
-                                    closestPhoto = photo;
+                            let rotHand = null;   // 物理右手 (对应系统标号 L)
+
+                            let pinchHand = null; // 物理左手 (对应系统标号 R)
+
+            
+
+                            results.multiHandedness.forEach((handInfo, index) => {
+
+                                const label = handInfo.label; 
+
+                                const landmarks = results.multiHandLandmarks[index];
+
+            
+
+                                if (label === 'Left') {
+
+                                    rotHand = landmarks;
+
+                                } else if (label === 'Right') {
+
+                                    pinchHand = landmarks;
+
                                 }
+
                             });
-                            
-                            if (closestPhoto) {
-                                STATE.focusTarget = closestPhoto.mesh;
+
+            
+
+                            // --- 1. 全局逻辑：物理右手 (系统L) 控制形态 (Tree vs Scatter) ---
+
+                            if (rotHand) {
+
+                                STATE.hand.detected = true;
+
+                                STATE.hand.x = (rotHand[9].x - 0.5) * 2; 
+
+                                STATE.hand.y = (rotHand[9].y - 0.5) * 2;
+
+            
+
+                                const wrist = rotHand[0];
+
+                                const tips = [rotHand[8], rotHand[12], rotHand[16], rotHand[20]];
+
+                                let avgDist = 0;
+
+                                tips.forEach(t => avgDist += Math.hypot(t.x - wrist.x, t.y - wrist.y));
+
+                                avgDist /= 4;
+
+            
+
+                                // 只有当没有在 3D 聚焦查看照片时，才允许右手切换模式
+
+                                if (STATE.mode !== 'FOCUS') {
+
+                                    if (avgDist < 0.25) {
+
+                                        STATE.mode = 'TREE';
+
+                                        STATE.focusTarget = null;
+
+                                    } else if (avgDist > 0.4) {
+
+                                        STATE.mode = 'SCATTER';
+
+                                    }
+
+                                }
+
+                            } else {
+
+                                // 如果物理右手消失，状态复位
+
+                                STATE.hand.detected = false;
+
                             }
+
+            
+
+                            // --- 2. 分支逻辑：根据是否开启“手动旋转控制” ---
+
+                            if (STATE.isRotationEnabled) {
+
+                                // === Mode A: 旋转控制开启 ===
+
+                                // 物理右手 (rotHand)：坐标已获取，animate() 会处理旋转
+
+                                
+
+                                // 物理左手 (pinchHand / 系统R)：3D 捏合查看
+
+                                let isPinching = false;
+
+                                if (pinchHand) {
+
+                                    const thumb = pinchHand[4]; 
+
+                                    const index = pinchHand[8]; 
+
+                                    const pinchDist = Math.hypot(thumb.x - index.x, thumb.y - index.y);
+
+                                    
+
+                                    // 迟滞逻辑
+
+                                    if (STATE.hand.rightPinchActive) {
+
+                                        if (pinchDist < 0.08) isPinching = true; 
+
+                                    } else {
+
+                                        if (pinchDist < 0.04) isPinching = true; 
+
+                                    }
+
+                                    STATE.hand.rightPinchActive = isPinching;
+
+                                    
+
+                                    if (isPinching) {
+
+                                        if (STATE.mode !== 'FOCUS') {
+
+                                            STATE.mode = 'FOCUS';
+
+                                            const photos = particleSystem.filter(p => p.type === 'PHOTO');
+
+                                            if (photos.length) {
+
+                                                // [NEW LOGIC] Find the photo closest to the screen center in the front hemisphere
+
+                                                let bestPhoto = null;
+
+                                                let minScore = Infinity;
+
+                                                const photoWorldPos = new THREE.Vector3();
+
+            
+
+                                                photos.forEach(photo => {
+
+                                                    photo.mesh.getWorldPosition(photoWorldPos);
+
+                                                    
+
+                                                    // 1. Only consider photos in the front hemisphere (closer to camera)
+
+                                                    if (photoWorldPos.z > 0) {
+
+                                                        // 2. Score based on proximity to the screen's central axis (X=0, Y=2)
+
+                                                        const dx = photoWorldPos.x;
+
+                                                        const dy = photoWorldPos.y - 2;
+
+                                                        const score = dx * dx + dy * dy;
+
+            
+
+                                                        if (score < minScore) {
+
+                                                            minScore = score;
+
+                                                            bestPhoto = photo;
+
+                                                        }
+
+                                                    }
+
+                                                });
+
+                                                
+
+                                                if (bestPhoto) {
+
+                                                    STATE.focusTarget = bestPhoto.mesh;
+
+                                                }
+
+                                            }
+
+                                        }
+
+                                    } else {
+
+                                        // [CRITICAL] Release Logic: Exit FOCUS mode when pinch is released
+
+                                        if (STATE.mode === 'FOCUS') {
+
+                                            STATE.mode = 'SCATTER'; // Default return state
+
+                                            STATE.focusTarget = null;
+
+                                            
+
+                                            // 检查物理右手状态以避免帧抖动
+
+                                            if (rotHand) {
+
+                                                const wrist = rotHand[0];
+
+                                                const tips = [rotHand[8], rotHand[12], rotHand[16], rotHand[20]];
+
+                                                let avgDist = 0;
+
+                                                tips.forEach(t => avgDist += Math.hypot(t.x - wrist.x, t.y - wrist.y));
+
+                                                avgDist /= 4;
+
+                                                if (avgDist < 0.25) STATE.mode = 'TREE';
+
+                                            }
+
+                                        }
+
+                                    }
+
+                                } else {
+
+                                    // 如果物理左手丢失追踪，也退出 FOCUS
+
+                                    STATE.hand.rightPinchActive = false;
+
+                                    if (STATE.mode === 'FOCUS') {
+
+                                        STATE.mode = 'SCATTER';
+
+                                        STATE.focusTarget = null;
+
+                                    }
+
+                                }
+
+            
+
+                            } else {
+
+                                // === Mode B: 手动旋转控制关闭 (自动旋转) ===
+
+                                // 物理左手 (pinchHand / 系统R)：幻灯片预览
+
+                                if (pinchHand) {
+
+                                    const thumb = pinchHand[4];
+
+                                    const index = pinchHand[8];
+
+                                    const pinchDist = Math.hypot(thumb.x - index.x, thumb.y - index.y);
+
+                                    const isPinching = pinchDist < 0.04 || (STATE.hand.leftPinchTriggered && pinchDist < 0.08);
+
+            
+
+                                    if (isPinching) {
+
+                                        if (!STATE.hand.leftPinchTriggered) {
+
+                                            STATE.hand.leftPinchTriggered = true;
+
+                                            cycleSlideshow();
+
+                                        }
+
+                                    } else {
+
+                                        STATE.hand.leftPinchTriggered = false;
+
+                                        // 松开关闭预览
+
+                                        const overlay = document.getElementById('slideshow-overlay');
+
+                                        if (overlay && !overlay.classList.contains('hidden')) {
+
+                                            overlay.classList.add('hidden');
+
+                                        }
+
+                                    }
+
+                                } else {
+
+                                     // 物理左手丢失，关闭预览
+
+                                     STATE.hand.leftPinchTriggered = false;
+
+                                     const overlay = document.getElementById('slideshow-overlay');
+
+                                     if (overlay && !overlay.classList.contains('hidden')) {
+
+                                         overlay.classList.add('hidden');
+
+                                     }
+
+                                }
+
+                            }
+
+            
+
+                        } else {
+
+                            STATE.hand.detected = false;
+
+                            
+
+                            // 安全复位：确保物理左手功能（幻灯片）关闭
+
+                            STATE.hand.leftPinchTriggered = false;
+
+                            const overlay = document.getElementById('slideshow-overlay');
+
+                            if (overlay && !overlay.classList.contains('hidden')) {
+
+                                overlay.classList.add('hidden');
+
+                            }
+
                         }
-                    }
-                } else if (avgDist < 0.25) {
-                    STATE.mode = 'TREE';
-                    STATE.focusTarget = null;
-                } else if (avgDist > 0.4) {
-                    STATE.mode = 'SCATTER';
-                    STATE.focusTarget = null;
-                }
-            } else {
-                STATE.hand.detected = false;
-            }
         }
 
         function setupEvents() {
@@ -956,58 +1257,34 @@
             });
             document.getElementById('file-input').addEventListener('change', handleImageUpload);
             
-            // Toggle UI logic - ONLY hide controls, keep title
+            // Slideshow Close Button
+            const slideshowClose = document.getElementById('slideshow-close');
+            const slideshowOverlay = document.getElementById('slideshow-overlay');
+            if (slideshowClose && slideshowOverlay) {
+                slideshowClose.addEventListener('click', () => {
+                    slideshowOverlay.classList.add('hidden');
+                });
+            }
+
+            // Toggle UI logic
             window.addEventListener('keydown', (e) => {
-                if (e.key.toLowerCase() === 'h') {
-                    const controls = document.querySelector('.upload-wrapper');
-                    if (controls) controls.classList.toggle('ui-hidden');
-                }
                 // 按 'C' 键切换摄像头窗口
                 if (e.key.toLowerCase() === 'c') {
                     toggleCameraWindow();
                 }
-            });
-
-            // 摄像头窗口控制
-            const cameraWindow = document.getElementById('camera-window');
-            const cameraWindowClose = document.getElementById('camera-window-close');
-            const cameraToggleBtn = document.getElementById('camera-toggle-btn');
-            
-            cameraWindowClose.addEventListener('click', () => {
-                toggleCameraWindow();
-            });
-
-            // 按钮点击切换摄像头窗口
-            if (cameraToggleBtn) {
-                cameraToggleBtn.addEventListener('click', () => {
-                    toggleCameraWindow();
-                });
-            }
-
-            // 拖拽功能
-            let isDragging = false;
-            let dragOffset = { x: 0, y: 0 };
-            const cameraWindowHeader = document.getElementById('camera-window-header');
-            
-            cameraWindowHeader.addEventListener('mousedown', (e) => {
-                isDragging = true;
-                const rect = cameraWindow.getBoundingClientRect();
-                dragOffset.x = e.clientX - rect.left;
-                dragOffset.y = e.clientY - rect.top;
-            });
-
-            document.addEventListener('mousemove', (e) => {
-                if (isDragging) {
-                    cameraWindow.style.left = (e.clientX - dragOffset.x) + 'px';
-                    cameraWindow.style.top = (e.clientY - dragOffset.y) + 'px';
-                    cameraWindow.style.right = 'auto';
-                    cameraWindow.style.bottom = 'auto';
+                // 按 'F' 键切换全屏
+                if (e.key.toLowerCase() === 'f') {
+                    toggleFullScreen();
                 }
             });
 
-            document.addEventListener('mouseup', () => {
-                isDragging = false;
-            });
+            // 摄像头开关控制
+            const cameraToggle = document.getElementById('camera-toggle');
+            if (cameraToggle) {
+                cameraToggle.addEventListener('change', (e) => {
+                    updateCameraVisibility(e.target.checked);
+                });
+            }
 
             // 手势说明面板控制
             const gestureGuide = document.getElementById('gesture-guide');
@@ -1018,93 +1295,114 @@
                 toggleGestureGuide();
             });
 
-            // 按钮点击切换手势说明面板
             if (gestureGuideToggleBtn) {
                 gestureGuideToggleBtn.addEventListener('click', () => {
                     toggleGestureGuide();
                 });
             }
 
-            // 手势说明面板拖拽功能
-            let isDraggingGuide = false;
-            let dragOffsetGuide = { x: 0, y: 0 };
-            const gestureGuideHeader = document.getElementById('gesture-guide-header');
-            
-            gestureGuideHeader.addEventListener('mousedown', (e) => {
-                if (e.target.id !== 'gesture-guide-close') {
-                    isDraggingGuide = true;
-                    const rect = gestureGuide.getBoundingClientRect();
-                    dragOffsetGuide.x = e.clientX - rect.left;
-                    dragOffsetGuide.y = e.clientY - rect.top;
-                }
-            });
+            // UI 显示/隐藏控制
+            const uiVisibilityBtn = document.getElementById('ui-visibility-btn');
+            if (uiVisibilityBtn) {
+                uiVisibilityBtn.addEventListener('click', () => {
+                    document.body.classList.toggle('ui-hidden');
+                    const isHidden = document.body.classList.contains('ui-hidden');
+                    const iconPath = document.getElementById('ui-icon-path');
+                    // 切换图标：闭眼/睁眼（这里简单切换一个属性或内容）
+                    if (isHidden) {
+                        uiVisibilityBtn.style.opacity = "0.5";
+                    } else {
+                        uiVisibilityBtn.style.opacity = "1";
+                    }
+                });
+            }
 
-            document.addEventListener('mousemove', (e) => {
-                if (isDraggingGuide) {
-                    gestureGuide.style.left = (e.clientX - dragOffsetGuide.x) + 'px';
-                    gestureGuide.style.top = (e.clientY - dragOffsetGuide.y) + 'px';
-                    gestureGuide.style.right = 'auto';
-                    gestureGuide.style.bottom = 'auto';
-                }
-            });
+            // 全屏按钮
+            const fullscreenBtn = document.getElementById('fullscreen-btn');
+            if (fullscreenBtn) {
+                fullscreenBtn.addEventListener('click', () => {
+                    toggleFullScreen();
+                });
+            }
 
-            document.addEventListener('mouseup', () => {
-                isDraggingGuide = false;
-            });
+            // 旋转控制切换开关
+            const rotationToggle = document.getElementById('rotation-toggle');
+            if (rotationToggle) {
+                // 初始化状态
+                rotationToggle.checked = STATE.isRotationEnabled;
+                
+                rotationToggle.addEventListener('change', (e) => {
+                    STATE.isRotationEnabled = e.target.checked;
+                });
+            }
+        }
+
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
         }
 
         function toggleGestureGuide() {
             const gestureGuide = document.getElementById('gesture-guide');
-            const gestureGuideToggleBtn = document.getElementById('gesture-guide-toggle-btn');
             const isVisible = gestureGuide.classList.contains('visible');
             
             if (isVisible) {
                 gestureGuide.classList.remove('visible');
-                if (gestureGuideToggleBtn) {
-                    gestureGuideToggleBtn.textContent = '📖 Guide';
-                }
             } else {
                 gestureGuide.classList.add('visible');
-                if (gestureGuideToggleBtn) {
-                    gestureGuideToggleBtn.textContent = '📖 Hide';
-                }
+            }
+        }
+
+        function updateCameraVisibility(visible) {
+            const cameraWindow = document.getElementById('camera-window');
+            if (visible) {
+                cameraWindow.classList.add('visible');
+            } else {
+                cameraWindow.classList.remove('visible');
             }
         }
 
         function toggleCameraWindow() {
-            const cameraWindow = document.getElementById('camera-window');
-            const cameraToggleBtn = document.getElementById('camera-toggle-btn');
-            const isVisible = cameraWindow.classList.contains('visible');
-            
-            if (isVisible) {
-                cameraWindow.classList.remove('visible');
-                if (cameraToggleBtn) {
-                    cameraToggleBtn.textContent = '📷 Camera';
-                }
-            } else {
-                cameraWindow.classList.add('visible');
-                if (cameraToggleBtn) {
-                    cameraToggleBtn.textContent = '📷 Hide';
-                }
+            const cameraToggle = document.getElementById('camera-toggle');
+            if (cameraToggle) {
+                cameraToggle.checked = !cameraToggle.checked;
+                updateCameraVisibility(cameraToggle.checked);
             }
         }
+
+        window.onWindowResize = () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            composer.setSize(window.innerWidth, window.innerHeight);
+        };
 
         function animate() {
             requestAnimationFrame(animate);
             const dt = clock.getDelta();
 
             // Rotation Logic
-            if (STATE.mode === 'SCATTER' && STATE.hand.detected) {
-                const targetRotY = STATE.hand.x * Math.PI * 3.0; // 增大左右滑动灵敏度
-                const targetRotX = STATE.hand.y * Math.PI * 0.25;
-                STATE.rotation.y += (targetRotY - STATE.rotation.y) * 3.0 * dt;
-                STATE.rotation.x += (targetRotX - STATE.rotation.x) * 3.0 * dt;
+            if (STATE.mode === 'TREE') {
+                // 树模式：固定慢慢旋转
+                STATE.rotation.y += 0.6 * dt; 
+                STATE.rotation.x += (0 - STATE.rotation.x) * 2.0 * dt;
             } else {
-                if(STATE.mode === 'TREE') {
-                    STATE.rotation.y += 0.3 * dt;
-                    STATE.rotation.x += (0 - STATE.rotation.x) * 2.0 * dt;
+                // 散开或查看模式
+                if (STATE.isRotationEnabled && STATE.hand.detected) {
+                    // 开启控制且检测到手势：允许手动控制
+                    const targetRotY = STATE.hand.x * Math.PI * 3.0; 
+                    const targetRotX = STATE.hand.y * Math.PI * 0.25;
+                    STATE.rotation.y += (targetRotY - STATE.rotation.y) * 3.0 * dt;
+                    STATE.rotation.x += (targetRotX - STATE.rotation.x) * 3.0 * dt;
                 } else {
-                     STATE.rotation.y += 0.1 * dt; 
+                    // 自动旋转
+                    STATE.rotation.y += 1.2 * dt; 
+                    STATE.rotation.x += (0 - STATE.rotation.x) * 2.0 * dt;
                 }
             }
 
