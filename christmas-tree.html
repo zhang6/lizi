@@ -1077,13 +1077,24 @@
                     tips.forEach(t => avgDist += Math.hypot(t.x - wrist.x, t.y - wrist.y));
                     avgDist /= 4;
 
-                    // 只有当没有在 3D 聚焦查看照片时，才允许右手切换模式
-                    if (STATE.mode !== 'FOCUS') {
-                        if (avgDist < 0.25) {
-                            STATE.mode = 'TREE';
-                            STATE.focusTarget = null;
-                        } else if (avgDist > 0.4) {
-                            STATE.mode = 'SCATTER';
+                    // [Improved Logic] Scale-Invariant Gesture Detection
+                    // Instead of absolute screen distance (which fails if hand is far/small),
+                    // we compare tip extension relative to hand size (Wrist to Middle MCP).
+                    const palmSize = Math.hypot(rotHand[9].x - wrist.x, rotHand[9].y - wrist.y);
+                    
+                    if (palmSize > 0) { // Avoid division by zero
+                        // Normalized openness: How far are tips compared to the palm size?
+                        // Fist: tips are close to wrist (~1.0x palm size or less)
+                        // Open: tips are far (~1.8x - 2.5x palm size)
+                        const openness = avgDist / palmSize;
+
+                        if (STATE.mode !== 'FOCUS') {
+                            if (openness < 1.3) {
+                                STATE.mode = 'TREE';
+                                STATE.focusTarget = null;
+                            } else if (openness > 1.7) {
+                                STATE.mode = 'SCATTER';
+                            }
                         }
                     }
                 } else {
