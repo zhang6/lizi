@@ -24,7 +24,7 @@ jobs:
       # 1. 仓库中有 CNAME 文件（在 GitHub 上，不在本地）
       # 2. GitHub API 缓存了旧配置
       # 解决方案：直接硬编码正确的 URL
-      url: https://jingkeling.github.io/christmas-tree/
+      url: https://zhang6.github.io/lizi/
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
